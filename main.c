@@ -7,7 +7,22 @@
 
 #define bdrate 115200               /* 115200 baud */
 
+#define Size 1027
 void SendCommands (char *buffer );
+
+//Declaring structure to contain one coordiante
+struct FontData
+{
+    float x,y,z;
+};
+
+// Structure to hold an array of FontData
+struct Multi_FontData {
+    struct FontData Font[Size];
+};
+
+// Function to populate FontDataArray from the file
+void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename);
 
 int main()
 {
@@ -44,32 +59,43 @@ int main()
     sprintf (buffer, "S0\n");
     SendCommands(buffer);
 
+    struct Multi_FontData Fonts;
+    int i;
+    const char *filename = "SingleStrokeFont.txt"; // Specify the file name
 
-    // These are sample commands to draw out some information - these are the ones you will be generating.
-    sprintf (buffer, "G0 X-13.41849 Y0.000\n");
-    SendCommands(buffer);
-    sprintf (buffer, "S1000\n");
-    SendCommands(buffer);
-    sprintf (buffer, "G1 X-13.41849 Y-4.28041\n");
-    SendCommands(buffer);
-    sprintf (buffer, "G1 X-13.41849 Y0.0000\n");
-    SendCommands(buffer);
-    sprintf (buffer, "G1 X-13.41089 Y4.28041\n");
-    SendCommands(buffer);
-    sprintf (buffer, "S0\n");
-    SendCommands(buffer);
-    sprintf (buffer, "G0 X-7.17524 Y0\n");
-    SendCommands(buffer);
-    sprintf (buffer, "S1000\n");
-    SendCommands(buffer);
-    sprintf (buffer, "G0 X0 Y0\n");
-    SendCommands(buffer);
+    // Populate the FontData array from the file
+    PopulateFontDataArray(&Fonts, filename);
 
+    // Print the data for verification
+    for (i = 0; i < Size; i++) {
+        printf("FontData %d: %f %f %f\n", i, Fonts.Font[i].x, Fonts.Font[i].y, Fonts.Font[i].z);
+    }
+    
     // Before we exit the program we need to close the COM port
     CloseRS232Port();
     printf("Com port now closed\n");
 
     return (0);
+}
+
+// Function to populate FontDataArray
+void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename) {
+    int i;
+    FILE *file = fopen(filename, "r"); // Open the file in read mode
+    if (file == NULL) {
+        perror("Error opening file");
+        exit(1);
+    }
+
+    // Read the file line by line
+    for (i = 0; i < Size ; i++) {
+        if (fscanf(file, "%f %f %f", &Fonts->Font[i].x, &Fonts->Font[i].y, &Fonts->Font[i].z) != 3) {
+            fprintf(stderr, "Error reading line %d from file.\n", i + 1);
+            break;
+        }
+    }
+
+    fclose(file); // Close the file
 }
 
 // Send the data to the robot - note in 'PC' mode you need to hit space twice
