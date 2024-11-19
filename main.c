@@ -17,12 +17,22 @@ struct FontData
 };
 
 // Structure to hold an array of FontData
-struct Multi_FontData {
+struct Multi_FontData
+{
     struct FontData Font[Size];
 };
 
 // Function to populate FontDataArray from the file
 void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename);
+
+// Function to get user input between 4 and 10
+int GetValidatedInput();
+
+//Function to apply scaled value
+void ScaleCoordinates(struct Multi_FontData *Fonts, float scalingFactor);
+
+//Function to check if file is open
+void CheckFileOpen(const char *filename);
 
 int main()
 {
@@ -68,14 +78,41 @@ int main()
 
     // Print the data for verification
     for (i = 0; i < Size; i++) {
-        printf("FontData %d: %f %f %f\n", i, Fonts.Font[i].x, Fonts.Font[i].y, Fonts.Font[i].z);
+        printf("%.2f %.2f %.2f\n", Fonts.Font[i].x, Fonts.Font[i].y, Fonts.Font[i].z);
     }
     
+    // Get validated user input
+    int userInput = GetValidatedInput();
+    printf("You entered: %d\n", userInput);
+
+    // Calculate the scaling factor
+    float scalingFactor = userInput / 18.0; // Ensure floating-point division
+    printf("Scaling Factor: %.2f\n", scalingFactor);
+
+     // Ask the user for the name of the second text file
+    char secondFilename[256]; // Buffer to store the second file name
+    printf("\nPlease enter the name of the second text file: ");
+    scanf("%255s", secondFilename);
+
+    // Check if the second file can be opened
+    CheckFileOpen(secondFilename);
+
     // Before we exit the program we need to close the COM port
     CloseRS232Port();
     printf("Com port now closed\n");
 
     return (0);
+}
+
+// Function to check if a file can be opened
+void CheckFileOpen(const char *filename) {
+    FILE *file = fopen(filename, "r"); // Attempt to open the file
+    if (file == NULL) {
+        perror("Error opening file");
+        exit(1);
+    }
+    printf("The file '%s' was opened successfully.\n", filename);
+    fclose(file); // Close the file after the check
 }
 
 // Function to populate FontDataArray
@@ -96,6 +133,32 @@ void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename) {
     }
 
     fclose(file); // Close the file
+}
+
+// Function to get and validate user input
+int GetValidatedInput() {
+    int input;
+    do {
+        printf("Enter a number between 4 and 10: ");
+        if (scanf("%d", &input) != 1) {
+            while (getchar() != '\n'); // Clear invalid input from buffer
+            printf("Invalid input. Please enter an integer.\n");
+            continue;
+        }
+        if (input < 4 || input > 10) {
+            printf("Invalid range. ");
+        }
+    } while (input < 4 || input > 10);
+    return input;
+}
+
+// Function to scale the X and Y coordinates
+void ScaleCoordinates(struct Multi_FontData *Fonts, float scalingFactor) {
+    for (int i = 0; i < Size; i++) {
+        Fonts->Font[i].x *= scalingFactor;
+        Fonts->Font[i].y *= scalingFactor;
+        // Z coordinate remains unchanged as per the requirement
+    }
 }
 
 // Send the data to the robot - note in 'PC' mode you need to hit space twice
