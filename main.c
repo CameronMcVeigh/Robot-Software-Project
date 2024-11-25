@@ -10,7 +10,7 @@
 #define Size 1027
 void SendCommands (char *buffer );
 
-//Declaring structure to contain one coordiante
+//Declaring structure to contain one coordiante with specifications for x,y,z
 struct FontData
 {
     float x,y,z;
@@ -29,10 +29,22 @@ void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename);
 int GetValidatedInput();
 
 //Function to apply scaled value
-void ScaleCoordinates(struct Multi_FontData *Fonts, float scalingFactor);
+void ScaleCoordinates(struct FontData outputMovementArray[], int count, float scalingFactor);
 
 //Function to check if file is open
 void CheckFileOpen(const char *filename);
+
+//Function to count number of characters in the file
+int CountCharactersInFile(const char *filename);
+
+//Function to store text from file into array of characters
+char* ReadFileIntoArray(const char *filename, int characterCount);
+
+//Function to retrieve character data
+int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struct FontData outputMovementArray[]);
+
+//Function to apply offset
+void ApplyOffset(struct FontData outputMovementArray[], int count, float offsetX);
 
 int main()
 {
@@ -73,35 +85,117 @@ int main()
     int i;
     const char *filename = "SingleStrokeFont.txt"; // Specify the file name
 
-    // Populate the FontData array from the file
+    // Populate the FontData array from the font file
     PopulateFontDataArray(&Fonts, filename);
 
-    // Print the data for verification
-    for (i = 0; i < Size; i++) {
-        printf("%.2f %.2f %.2f\n", Fonts.Font[i].x, Fonts.Font[i].y, Fonts.Font[i].z);
-    }
-    
     // Get validated user input
     int userInput = GetValidatedInput();
-    printf("You entered: %d\n", userInput);
+    printf("You entered: %d\n", userInput); // print the user input for verification
 
     // Calculate the scaling factor
     float scalingFactor = userInput / 18.0; // Ensure floating-point division
-    printf("Scaling Factor: %.2f\n", scalingFactor);
+    printf("Scaling Factor: %.2f\n", scalingFactor); // prrint scaling factor for verification
 
-     // Ask the user for the name of the second text file
+    // Ask the user for the name of the second text file
     char secondFilename[256]; // Buffer to store the second file name
-    printf("\nPlease enter the name of the second text file: ");
+    printf("\nPlease enter the name of the text file to be drawn: "); // Prompt user to enter name of the text file to be read
     scanf("%255s", secondFilename);
 
     // Check if the second file can be opened
     CheckFileOpen(secondFilename);
+
+    // After checking the second file can be opened count the number of character in the text file, for the next loop
+    int characterCount = CountCharactersInFile(secondFilename);
+
+    // Create an array and read the file content into it
+    char *charArray = ReadFileIntoArray(secondFilename, characterCount);
+
+    // Buffer to store retrieved data
+    struct FontData outputMovementArray[Size];
+    int retrievedCount = 0;
+
+    float currentOffsetX = 0.0f; // Initial offset for the x coordinate
+
+    // Process each character in the file
+    for (int i = 0; i < characterCount; i++) 
+    {
+        int asciiValue = (int)charArray[i]; // Get ASCII value of the current character
+
+        if (asciiValue == 32 || asciiValue == '\n') 
+        { // If a space or newline is encountered
+            printf("Retrieved word data. Moving to next word... \n"); // replace this with processing of word (ie convert to G code then send to Arduino)
+            currentOffsetX += 18.0f * scalingFactor; // Increment the offset for the next word
+            continue; // Skip processing for the space
+        }
+
+        // Retrieve the character data for the current ASCII value
+        retrievedCount = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray);
+
+        // Scale the coordinates (including the offset)
+        ScaleCoordinates(outputMovementArray, retrievedCount, scalingFactor);
+
+        // Apply the offset to the x coordinates
+        ApplyOffset(outputMovementArray, retrievedCount, currentOffsetX);
+
+        // Print the retrieved data to verify its contents
+        for (int j = 0; j < retrievedCount; j++) {
+            printf("%.2f %.2f %.2f\n", outputMovementArray[j].x, outputMovementArray[j].y, outputMovementArray[j].z);
+        }
+
+        // Increment the offset for the next character
+        currentOffsetX += 18.0f * scalingFactor;
+
+        // Clear the outputMovementArray for the next word
+        for (int j = 0; j < retrievedCount; j++) {
+            outputMovementArray[j] = (struct FontData){0.0f, 0.0f, 0.0f};
+        }
+    }
+
+    // Free allocated memory
+    free(charArray);
 
     // Before we exit the program we need to close the COM port
     CloseRS232Port();
     printf("Com port now closed\n");
 
     return (0);
+}
+
+// Function to apply offset to the x coordinates of the data
+void ApplyOffset(struct FontData outputMovementArray[], int count, float offsetX)
+{
+    for (int i = 0; i < count; i++) {
+        outputMovementArray[i].x += offsetX;
+    }
+}
+
+// Function to retrieve character data for a given ASCII value
+int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struct FontData outputMovementArray[]) 
+{
+    int display = 0;
+    int index = 0;
+
+    for (int i = 0; i < Size; i++) 
+    {
+        if (FontDataArray[i].x == 999) 
+        {
+            if (FontDataArray[i].y == asciiValue) 
+            {
+                display = 1; // Start collecting lines
+            } else if (display) 
+            {
+                break; // Stop collecting when encountering a new `999` block
+            }
+            continue; // Skip the `999` line itself
+        }
+
+        if (display) 
+        {
+            outputMovementArray[index++] = FontDataArray[i];
+        }
+    }
+
+    return index; // Return the number of retrieved lines
 }
 
 // Function to check if a file can be opened
@@ -139,7 +233,7 @@ void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename) {
 int GetValidatedInput() {
     int input;
     do {
-        printf("Enter a number between 4 and 10: ");
+        printf("Enter a font size between 4 and 10: ");
         if (scanf("%d", &input) != 1) {
             while (getchar() != '\n'); // Clear invalid input from buffer
             printf("Invalid input. Please enter an integer.\n");
@@ -152,13 +246,52 @@ int GetValidatedInput() {
     return input;
 }
 
-// Function to scale the X and Y coordinates
-void ScaleCoordinates(struct Multi_FontData *Fonts, float scalingFactor) {
-    for (int i = 0; i < Size; i++) {
-        Fonts->Font[i].x *= scalingFactor;
-        Fonts->Font[i].y *= scalingFactor;
-        // Z coordinate remains unchanged as per the requirement
+//Function to scale each coordiante
+void ScaleCoordinates(struct FontData outputMovementArray[], int count, float scalingFactor) 
+{
+    for (int i = 0; i < count; i++) {
+        outputMovementArray[i].x *= scalingFactor;
+        outputMovementArray[i].y *= scalingFactor;
+        // Z coordinate remains unchanged
     }
+}
+
+int CountCharactersInFile(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        exit(1);
+    }
+
+    int count = 0;
+    while (fgetc(file) != EOF) { // Read character by character
+        count++;
+    }
+
+    fclose(file); // Close the file
+    return count;
+}
+
+// Function to read file content into an array
+char* ReadFileIntoArray(const char *filename, int characterCount) {
+    FILE *file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("Error opening file");
+        exit(1);
+    }
+
+    // Allocate memory for the character array
+    char *charArray = (char *)malloc(characterCount * sizeof(char));
+
+    // Read characters from the file into the array
+    for (int i = 0; i < characterCount; i++) 
+    {
+        int ch = fgetc(file);
+        charArray[i] = (char)ch;
+    }
+
+    fclose(file);
+    return charArray;
 }
 
 // Send the data to the robot - note in 'PC' mode you need to hit space twice
