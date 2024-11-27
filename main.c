@@ -32,7 +32,7 @@ int GetValidatedInput();
 void ScaleCoordinates(struct FontData outputMovementArray[], int count, float scalingFactor);
 
 //Function to check if file is open
-void CheckFileOpen(const char *filename);
+void CheckFileIsOpen(const char *filename);
 
 //Function to count number of characters in the file
 int CountCharactersInFile(const char *filename);
@@ -44,7 +44,7 @@ char* ReadFileIntoArray(const char *filename, int characterCount);
 int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struct FontData outputMovementArray[]);
 
 //Function to apply offset
-void ApplyOffset(struct FontData outputMovementArray[], int count, float offsetX);
+void ApplyOffset(struct FontData outputMovementArray[], int count, float PositionX, float PositionY);
 
 int main()
 {
@@ -82,7 +82,6 @@ int main()
     SendCommands(buffer);
 
     struct Multi_FontData Fonts;
-    int i;
     const char *filename = "SingleStrokeFont.txt"; // Specify the file name
 
     // Populate the FontData array from the font file
@@ -97,61 +96,62 @@ int main()
     printf("Scaling Factor: %.2f\n", scalingFactor); // prrint scaling factor for verification
 
     // Ask the user for the name of the second text file
-    char secondFilename[256]; // Buffer to store the second file name
+    char TextFileName[256]; //Creating a buffer to store the second file name
     printf("\nPlease enter the name of the text file to be drawn: "); // Prompt user to enter name of the text file to be read
-    scanf("%255s", secondFilename);
+    scanf("%s", TextFileName);
 
     // Check if the second file can be opened
-    CheckFileOpen(secondFilename);
+    CheckFileIsOpen(TextFileName);
 
     // After checking the second file can be opened count the number of character in the text file, for the next loop
-    int characterCount = CountCharactersInFile(secondFilename);
+    int characterCount = CountCharactersInFile(TextFileName);
 
     // Create an array and read the file content into it
-    char *charArray = ReadFileIntoArray(secondFilename, characterCount);
+    char *charArray = ReadFileIntoArray(TextFileName, characterCount);
 
     // Buffer to store retrieved data
     struct FontData outputMovementArray[Size];
-    int retrievedCount = 0;
+    int Numberofmovements = 0;
 
-    float currentOffsetX = 0.0f; // Initial offset for the x coordinate
+    float CurrentXPosition = 0.0f; // Track the x position
+    float CurrentYPosition = 0.0f; // track the Y position
 
     // Process each character in the file
     for (int i = 0; i < characterCount; i++) 
     {
         int asciiValue = (int)charArray[i]; // Get ASCII value of the current character
 
-        if (asciiValue == 32 || asciiValue == '\n') 
+        if (asciiValue == 32) 
         { // If a space or newline is encountered
             printf("Retrieved word data. Moving to next word... \n"); // replace this with processing of word (ie convert to G code then send to Arduino)
-            currentOffsetX += 18.0f * scalingFactor; // Increment the offset for the next word
-            continue; // Skip processing for the space
+            CurrentXPosition += 5.0f * scalingFactor; // Increment the offset for the next word
         }
 
         // Retrieve the character data for the current ASCII value
-        retrievedCount = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray);
+        int Numberofmovements = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray);
 
-        // Scale the coordinates (including the offset)
-        ScaleCoordinates(outputMovementArray, retrievedCount, scalingFactor);
+        // Scale the coordinates 
+        ScaleCoordinates(outputMovementArray, Numberofmovements, scalingFactor);
 
         // Apply the offset to the x coordinates
-        ApplyOffset(outputMovementArray, retrievedCount, currentOffsetX);
+        ApplyOffset(outputMovementArray, Numberofmovements, CurrentXPosition, CurrentYPosition);
 
         // Print the retrieved data to verify its contents
-        for (int j = 0; j < retrievedCount; j++) {
+        for (int j = 0; j < Numberofmovements; j++) {
             printf("%.2f %.2f %.2f\n", outputMovementArray[j].x, outputMovementArray[j].y, outputMovementArray[j].z);
         }
 
         // Increment the offset for the next character
-        currentOffsetX += 18.0f * scalingFactor;
+        CurrentXPosition += 18.0f * scalingFactor;
 
         // Clear the outputMovementArray for the next word
-        for (int j = 0; j < retrievedCount; j++) {
+        for (int j = 0; j < Numberofmovements; j++) 
+        {
             outputMovementArray[j] = (struct FontData){0.0f, 0.0f, 0.0f};
         }
     }
 
-    // Free allocated memory
+    // Free allocated memory from the text file
     free(charArray);
 
     // Before we exit the program we need to close the COM port
@@ -162,44 +162,35 @@ int main()
 }
 
 // Function to apply offset to the x coordinates of the data
-void ApplyOffset(struct FontData outputMovementArray[], int count, float offsetX)
+void ApplyOffset(struct FontData outputMovementArray[], int count, float PositionX, float PositionY)
 {
     for (int i = 0; i < count; i++) {
-        outputMovementArray[i].x += offsetX;
+        outputMovementArray[i].x += PositionX;
+        outputMovementArray[i].y += PositionY;
     }
 }
 
 // Function to retrieve character data for a given ASCII value
 int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struct FontData outputMovementArray[]) 
 {
-    int display = 0;
-    int index = 0;
-
+    int outputindex;
+    int count;
     for (int i = 0; i < Size; i++) 
     {
-        if (FontDataArray[i].x == 999) 
+        if (FontDataArray[i].x == 999 && FontDataArray[i].y == asciiValue) 
         {
-            if (FontDataArray[i].y == asciiValue) 
+            count = FontDataArray[i].z;
+            for (int k=1; k < count; k++)
             {
-                display = 1; // Start collecting lines
-            } else if (display) 
-            {
-                break; // Stop collecting when encountering a new `999` block
+                outputMovementArray[outputindex++] = FontDataArray[i + 1 + k];
             }
-            continue; // Skip the `999` line itself
-        }
-
-        if (display) 
-        {
-            outputMovementArray[index++] = FontDataArray[i];
         }
     }
-
-    return index; // Return the number of retrieved lines
+    return count;
 }
 
 // Function to check if a file can be opened
-void CheckFileOpen(const char *filename) {
+void CheckFileIsOpen(const char *filename) {
     FILE *file = fopen(filename, "r"); // Attempt to open the file
     if (file == NULL) {
         perror("Error opening file");
@@ -259,8 +250,8 @@ void ScaleCoordinates(struct FontData outputMovementArray[], int count, float sc
 int CountCharactersInFile(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
-        perror("Error opening file");
-        exit(1);
+        printf("Error opening file");
+        return -1;
     }
 
     int count = 0;
