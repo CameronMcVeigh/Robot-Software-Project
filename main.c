@@ -41,13 +41,16 @@ int CountCharactersInFile(const char *filename);
 char* ReadTextFileIntoArray(const char *filename, int characterCount);
 
 //Function to retrieve character data
-int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struct FontData outputMovementArray[]);
+int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue,struct FontData outputMovementArray[], int *Numberofmovements);
 
 //Function to apply offset
 void ApplyOffset(struct FontData outputMovementArray[], int count, float PositionX, float PositionY);
 
 //Function to caluclate WordSize
 int CalculateWordSize(struct FontData outputMovementArray[],int Numberofmovements);
+
+//Function to generate G Code
+void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int Numberofmovements);
 
 int main()
 {
@@ -94,7 +97,7 @@ int main()
     float userInput = GetUserInput();
 
     // Calculate the scaling factor
-    float scalingFactor = userInput / 18.0; // Ensure floating-point division
+    float scalingFactor = userInput / 18.0; // Calculating a scaling factor from user input 
     printf("Scaling Factor: %.2f\n", scalingFactor); // prrint scaling factor for verification
 
     // Ask the user for the name of the second text file
@@ -105,7 +108,7 @@ int main()
     // Check if the second file can be opened
     CheckFileIsOpen(TextFileName);
 
-    // After checking the second file can be opened count the number of character in the text file, for the next loop
+    // Counting the number of characters in the text file so I can loop through each character
     int characterCount = CountCharactersInFile(TextFileName);
 
     // Create an array and read the file content into it
@@ -118,133 +121,167 @@ int main()
     float CurrentXPosition = 0.0f; // Track the x position
     float CurrentYPosition = 0.0f; // track the Y position
 
-    // Loop through every character in the text file
-    for (int i = 0; i < characterCount; i++) 
+    int i=0;
+    while (i < characterCount) 
     {
-        int asciiValue = (int)charArray[i]; // Get ASCII value of the current character
+        // Collect the next word
+        char wordBuffer[256];
+        int wordLength = 0;
 
-        if (asciiValue == 32) 
-        { // If a space is encountered
-
-            printf("Retrieved word data. Moving to next word... \n"); // replace this with processing of word (ie convert to G code then send to Arduino)
-            
-            int WordSize = CalculateWordSize(outputMovementArray, Numberofmovements);
-            printf("Word size = %d\n", WordSize);
-                 
-            CurrentXPosition += (5.0f * scalingFactor);               // Increment the current x position to allow for a space
-            if (WordSize + CurrentXPosition > 100)
-            {
-                CurrentXPosition = 0;
-                CurrentYPosition = -(18*scalingFactor + 5);
-            }
-
-            // Clear the outputMovementArray for the next word
-            for (int j = 0; j < Numberofmovements; j++) 
-            {
-                outputMovementArray[j] = (struct FontData){0.0f, 0.0f, 0.0f};
-            }
-
+        while (i < characterCount && charArray[i] != 32) 
+        { // Not a space
+            wordBuffer[wordLength++] = charArray[i++];
         }
+        wordBuffer[wordLength] = '\0'; // Null-terminate the word
 
-        // Retrieve the character data for the current ASCII value
-        int Numberofcharmovements = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray);
-
-        // Scale the coordinates 
-        ScaleCoordinates(outputMovementArray, Numberofcharmovements, scalingFactor);
-
-        // Apply the offset to the x coordinates
-        ApplyOffset(outputMovementArray, Numberofcharmovements, CurrentXPosition, CurrentYPosition);
-
-        // Print the retrieved data to verify its contents
-        for (int j = 0; j < Numberofcharmovements; j++) 
+        // Skip the space
+        if (i < characterCount && charArray[i] == 32) 
         {
-            printf("%.2f %.2f %.2f\n", outputMovementArray[j].x, outputMovementArray[j].y, outputMovementArray[j].z);
+            i++;
         }
 
-        // Increment the offset for the next character
-        CurrentXPosition += 18.0f * scalingFactor;
-        Numberofmovements += Numberofcharmovements;
+        // Calculate the word's width
+        float wordWidth = 0.0f;
+        struct FontData tempArray[Size];
+        int tempMovements = 0;
 
-        
+        for (int j = 0; j < wordLength; j++) 
+        {
+            int asciiValue = (int)wordBuffer[j];
+            int charMovements = RetrieveCharacterData(Fonts.Font, asciiValue, tempArray, &tempMovements);
+
+            // Scale character movements
+            ScaleCoordinates(&tempArray[tempMovements - charMovements], charMovements, scalingFactor);
+
+            // Accumulate word width
+            wordWidth += 18.0f * scalingFactor; // Character width
+        }
+
+        // Check if the word fits on the current line
+        if (CurrentXPosition + wordWidth > 100.0f) 
+        {
+            // Wrap to a new line
+            CurrentXPosition = 0.0f;
+            CurrentYPosition -= (18.0f * scalingFactor + 5.0f);
+        }
+
+        // Generate G-code for the word
+        struct FontData outputMovementArray[Size];
+        int Numberofmovements = 0;
+
+        for (int j = 0; j < wordLength; j++) 
+        {
+            int asciiValue = (int)wordBuffer[j];
+            int charMovements = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray, &Numberofmovements);
+
+            // Scale and offset the character's coordinates
+            ScaleCoordinates(&outputMovementArray[Numberofmovements - charMovements], charMovements, scalingFactor);
+            ApplyOffset(&outputMovementArray[Numberofmovements - charMovements], charMovements, CurrentXPosition, CurrentYPosition);
+
+            // Increment X position for the next character
+            CurrentXPosition += 18.0f * scalingFactor;
+        }
+
+        // Generate and print G-code for the word
+        int gCodeArraySize = 2 * Size * 64;
+        char *GcodeArray = (char *)malloc(gCodeArraySize * sizeof(char));
+        GenerateGcode(outputMovementArray, GcodeArray, Numberofmovements);
+        printf("%s\n", GcodeArray);
+        free(GcodeArray);
+
+        // Add a space after the word+
+        CurrentXPosition += 5.0f * scalingFactor;
     }
 
-    // Free allocated memory from the text file
+    // Cleanup
     free(charArray);
-
-    // Before we exit the program we need to close the COM port
     CloseRS232Port();
     printf("Com port now closed\n");
 
-    return (0);
+    return 0;
+}
+
+
+//Function to generate G code
+void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int Numberofmovements)
+{
+    int GcodePosition = 0; //Tracking the GcodePosition so i can move through array
+
+    for (int i=0; i < Numberofmovements; i++) // loop through each struct in outputMovementArray
+    {
+        if(outputMovementArray[i].z == 1.0)      // If pen is down
+        {
+            GcodePosition += sprintf (&GcodeArray[GcodePosition], "S1000\n");//Print with S1000 and G1
+            GcodePosition += sprintf (&GcodeArray[GcodePosition], "G1 X%.2f Y%.2f\n", outputMovementArray[i].x, outputMovementArray[i].y);
+        }
+        else //if pen is up
+        {
+            GcodePosition += sprintf (&GcodeArray[GcodePosition], "S0\n"); // print with S0 and G0
+            GcodePosition += sprintf (&GcodeArray[GcodePosition], "G0 X%.2f Y%.2f\n", outputMovementArray[i].x, outputMovementArray[i].y);
+        }
+    }
+    GcodeArray[GcodePosition] = '\0'; // Null-terminate the string
 }
 
 //Function to calculate the size of the word
 int CalculateWordSize(struct FontData outputMovementArray[], int Numberofmovements) 
 {
-    if (Numberofmovements <= 0) 
-    {
-        return 0; // No movements mean no word size
-    }
+    float MinXPosition = outputMovementArray[0].x; // Initializing the first element's maximum and minimum x coordinate, to find the range
+    float MaxXPosition = outputMovementArray[0].x; 
 
-    float minX = outputMovementArray[0].x; // Initialize with the first element's x-coordinate
-    float maxX = outputMovementArray[0].x;
-
-    for (int i = 1; i < Numberofmovements; i++) 
+    for (int i = 1; i < Numberofmovements; i++) // Loop through each struct
     {
-        if (outputMovementArray[i].x < minX) 
+        if (outputMovementArray[i].x < MinXPosition) // if the value within word data is smaller than the minimum x then that is set as the new minmym
         {
-            minX = outputMovementArray[i].x;
+            MinXPosition = outputMovementArray[i].x;
         }
-        if (outputMovementArray[i].x > maxX) 
+        if (outputMovementArray[i].x > MaxXPosition) //if the value within word data is larger than the max x then that is set as the new max
         {
-            maxX = outputMovementArray[i].x;
+            MaxXPosition = outputMovementArray[i].x;
         }
     }
-
-    return (int)(maxX - minX); // Return the word size as an integer
+    int WordSize = MaxXPosition-MinXPosition;
+    return WordSize; // Returning the rang between maximum and minimum ( word Siez )
 }
 
 
 // Function to apply offset to the x coordinates of the data
-void ApplyOffset(struct FontData outputMovementArray[], int count, float PositionX, float PositionY)
+void ApplyOffset(struct FontData outputMovementArray[], int count, float CurrentXPosition, float CurrentYPosition)
 {
-    for (int i = 0; i < count; i++) 
+    for (int i = 0; i < count; i++) // looping through each  
     {
-        outputMovementArray[i].x +=  PositionX;
-        outputMovementArray[i].y +=  PositionY;
+        outputMovementArray[i].x +=  CurrentXPosition;
+        outputMovementArray[i].y +=  CurrentYPosition;
     }
 }
 
 // Function to retrieve character data for a given ASCII value
-// Function to retrieve character data for a given ASCII value
-int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struct FontData outputMovementArray[]) 
+int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue,struct FontData outputMovementArray[], int *Numberofmovements) 
 {
-    int display = 0;
-    int NumMovements = 0;
+    int True = 0;
+    int count = 0;
 
-    for (int i = 0; i < Size; i++) 
-    {
-        if (FontDataArray[i].x == 999) 
-        {
+    for (int i = 0; i < Size; i++) {
+        if (FontDataArray[i].x == 999) {
             if (FontDataArray[i].y == asciiValue) 
             {
-                display = 1; // Start collecting lines
-            } else if (display) 
+                True = 1; // Start collecting lines
+            } else if (True) 
             {
-                break; // Stop collecting when encountering a new `999 line
+                break; // Stop collecting when encountering a new `999` line
             }
             continue; // Skip the `999` line itself
         }
 
-        if (display) 
-        {
-            outputMovementArray[NumMovements++] = FontDataArray[i];
+        if (True) {
+            outputMovementArray[*Numberofmovements] = FontDataArray[i];
+            (*Numberofmovements)++;
+            count++;
         }
     }
 
-    return NumMovements; // Return the number of retrieved lines
+    return count; // Return the number of retrieved lines
 }
-
 
 // Function to check if a file can be opened
 void CheckFileIsOpen(const char *filename) 
