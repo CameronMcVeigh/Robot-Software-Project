@@ -201,7 +201,7 @@ void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int
         if(outputMovementArray[i].z == 1.0)      // If pen is down
         {
             GcodePosition += sprintf (&GcodeArray[GcodePosition], "S1000\n");//Print with S1000 and G1
-            GcodePosition += sprintf (&GcodeArray[GcodePosition], "G1 X%.2f Y%.2f\n", outputMovementArray[i].x, outputMovementArray[i].y);
+            GcodePosition += sprintf (&GcodeArray[GcodePosition], "G1 X%.2f Y%.2f \n ", outputMovementArray[i].x, outputMovementArray[i].y);
         }
         else //if pen is up
         {
@@ -266,7 +266,7 @@ void CheckFileIsOpen(const char *filename)
 void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename) {
     int i;
     FILE *file = fopen(filename, "r"); // Open the file in read mode
-   
+
     // Read the file line by line
     for (i = 0; i < Size ; i++) 
     {
@@ -277,21 +277,25 @@ void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename) {
 }
 
 // Function to get and validate user input
-float GetUserInput() {
+float GetUserInput() 
+{
     float input;
     do {
         printf("Enter a font size between 4 and 10mm: ");
-        if (scanf("%f", &input) != 1) {  
+        if (scanf("%f", &input) != 1) 
+        {  
             while (getchar() != '\n '); // Clear invalid input from buffer
             printf("The input Must be a number! \n ");
             continue;
         }
-        if (input < 4 || input > 10) {
+        if (input < 4 || input > 10) 
+        {
             printf("Please ensure input is in the correct range \n ");
         }
     } while (input < 4 || input > 10);      // only accept a user input in the range of 4 to 10mm
     return input;
 }
+
 
 //Function to scale each coordiante
 void ScaleCoordinates(struct FontData outputMovementArray[], int count, float scalingFactor) 
@@ -303,9 +307,11 @@ void ScaleCoordinates(struct FontData outputMovementArray[], int count, float sc
     }
 }
 
-int CountCharactersInFile(const char *filename) {
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) {
+int CountCharactersInFile(const char *filename) 
+{
+    FILE *file = fopen(filename, "r");  //open file
+    if (file == NULL)                   //Check that file can be opened
+    {                 
         printf("Error opening file");
         return -1;
     }
@@ -317,15 +323,16 @@ int CountCharactersInFile(const char *filename) {
     }
 
     fclose(file); // Close the file
-    return count;
+    return count; // return the number of characters in the file
 }
 
 // Function to read file content into an array
-char* ReadTextFileIntoArray(const char *filename, int characterCount) {
+char* ReadTextFileIntoArray(const char *filename, int characterCount) 
+{
     FILE *file = fopen(filename, "r");
-    if (file == NULL) {
-        perror("Error opening file");
-        exit(1);
+    if (file == NULL) 
+    {
+        printf("Error opening file");
     }
 
     // Allocate memory for the character array
