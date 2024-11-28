@@ -46,6 +46,9 @@ int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struc
 //Function to apply offset
 void ApplyOffset(struct FontData outputMovementArray[], int count, float PositionX, float PositionY);
 
+//Function to caluclate WordSize
+int CalculateWordSize(struct FontData outputMovementArray[],int Numberofmovements);
+
 int main()
 {
 
@@ -125,12 +128,15 @@ int main()
 
             printf("Retrieved word data. Moving to next word... \n"); // replace this with processing of word (ie convert to G code then send to Arduino)
             
-            //WordSize = CalculateWordSize(outputMovementArray);
+            int WordSize = CalculateWordSize(outputMovementArray, Numberofmovements);
+            printf("Word size = %d\n", WordSize);
                  
             CurrentXPosition += (5.0f * scalingFactor);               // Increment the current x position to allow for a space
-            //Put here (if wordSize+CurrentX position> 100)
-            //CurrentXposition == 0
-            //CurrentYposition == -(18*scalingfactor + 5)
+            if (WordSize + CurrentXPosition > 100)
+            {
+                CurrentXPosition = 0;
+                CurrentYPosition = -(18*scalingFactor + 5);
+            }
 
             // Clear the outputMovementArray for the next word
             for (int j = 0; j < Numberofmovements; j++) 
@@ -150,7 +156,8 @@ int main()
         ApplyOffset(outputMovementArray, Numberofcharmovements, CurrentXPosition, CurrentYPosition);
 
         // Print the retrieved data to verify its contents
-        for (int j = 0; j < Numberofcharmovements; j++) {
+        for (int j = 0; j < Numberofcharmovements; j++) 
+        {
             printf("%.2f %.2f %.2f\n", outputMovementArray[j].x, outputMovementArray[j].y, outputMovementArray[j].z);
         }
 
@@ -170,6 +177,33 @@ int main()
 
     return (0);
 }
+
+//Function to calculate the size of the word
+int CalculateWordSize(struct FontData outputMovementArray[], int Numberofmovements) 
+{
+    if (Numberofmovements <= 0) 
+    {
+        return 0; // No movements mean no word size
+    }
+
+    float minX = outputMovementArray[0].x; // Initialize with the first element's x-coordinate
+    float maxX = outputMovementArray[0].x;
+
+    for (int i = 1; i < Numberofmovements; i++) 
+    {
+        if (outputMovementArray[i].x < minX) 
+        {
+            minX = outputMovementArray[i].x;
+        }
+        if (outputMovementArray[i].x > maxX) 
+        {
+            maxX = outputMovementArray[i].x;
+        }
+    }
+
+    return (int)(maxX - minX); // Return the word size as an integer
+}
+
 
 // Function to apply offset to the x coordinates of the data
 void ApplyOffset(struct FontData outputMovementArray[], int count, float PositionX, float PositionY)
