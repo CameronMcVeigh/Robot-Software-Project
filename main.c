@@ -87,6 +87,8 @@ int main()
 
     struct Multi_FontData Fonts;
     const char *filename = "SingleStrokeFont.txt"; // Specify the file name
+    const int CharacterSize = 18.0;
+    const int linespace = 100.0;
 
     // Populate the FontData array from the font file
     PopulateFontDataArray(&Fonts, filename);
@@ -95,8 +97,7 @@ int main()
     float userInput = GetUserInput();
 
     // Calculate the scaling factor
-    float scalingFactor = userInput / 18.0; // Calculating a scaling factor from user input 
-    printf("Scaling Factor: %.2f\n", scalingFactor); // prrint scaling factor for verification
+    float scalingFactor = userInput / CharacterSize; // Calculating a scaling factor from user input 
 
     // Ask the user for the name of the second text file
     char TextFileName[256]; //Creating a buffer to store the name of the text file
@@ -143,14 +144,14 @@ int main()
 
         for (int j = 0; j < wordLength; j++) // For the amount of characters in the word
         {
-            WordWidth += 18.0f * scalingFactor; // Calculate the size of the word
+            WordWidth += CharacterSize * scalingFactor; // Calculate the size of the word
         }
 
         // Check if the word fits on the current line
-        if (CurrentXPosition + WordWidth > 100.0f) //if the Word size cannot fit on the current line
+        if (CurrentXPosition + WordWidth > linespace) //if the Word size cannot fit on the current line
         {
             CurrentXPosition = 0.0f;                            //Reset the xPosition back to the beginning of the line
-            CurrentYPosition -= (18.0f * scalingFactor + 5.0f); // Move the Y position down by the size of the letter with a 5mm gap (new line) 
+            CurrentYPosition -= (CharacterSize * scalingFactor + 5.0f); // Move the Y position down by the size of the letter with a 5mm gap (new line) 
         }
 
 
@@ -166,7 +167,7 @@ int main()
             ApplyOffset(&outputMovementArray[Numberofmovements - charMovements], charMovements, CurrentXPosition, CurrentYPosition);//Offset each character 
 
             // Increment X position for the next character
-            CurrentXPosition += 18.0f * scalingFactor;
+            CurrentXPosition += CharacterSize * scalingFactor;
         }
 
         int gCodeArraySize = Size * 64; //Initialising G code array
