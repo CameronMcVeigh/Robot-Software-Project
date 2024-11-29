@@ -227,32 +227,33 @@ void ApplyOffset(struct FontData outputMovementArray[], int count, float Current
 }
 
 // Function to retrieve character data for a given ASCII value
-int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue,struct FontData outputMovementArray[], int *Numberofmovements) 
+int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struct FontData outputMovementArray[], int *Numberofmovements) 
 {
-    int True = 0;
-    int count = 0;
+    int count = 0; // Number of movements for the current character
 
-    for (int i = 0; i < Size; i++) {
-        if (FontDataArray[i].x == 999) {
-            if (FontDataArray[i].y == asciiValue) 
+    for (int i = 0; i < Size; i++) 
+    {
+        // Check for the start of a character's movement data (marked by `999`)
+        if (FontDataArray[i].x== 999 && FontDataArray[i].y== asciiValue) 
+        {
+            // Get the amount of following lines to be read into the outputArray
+            count = (int)FontDataArray[i].z;
+
+            // Copy each line into the outputArray for the specified amount of line
+            for (int k = 0; k < count; k++) 
             {
-                True = 1; // Start collecting lines
-            } else if (True) 
-            {
-                break; // Stop collecting when encountering a new `999` line
+                int index = i + 1 + k; // Offset from the current `999` line
+            
+                outputMovementArray[*Numberofmovements] = FontDataArray[index];
+                (*Numberofmovements)++;
             }
-            continue; // Skip the `999` line itself
-        }
-
-        if (True) {
-            outputMovementArray[*Numberofmovements] = FontDataArray[i];
-            (*Numberofmovements)++;
-            count++;
+           // break; // Exit after processing the current character
         }
     }
 
-    return count; // Return the number of retrieved lines
+    return count; // Return the number of movements collected
 }
+
 
 // Function to check if a file can be opened
 void CheckFileIsOpen(const char *filename) 
