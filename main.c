@@ -142,10 +142,7 @@ int main()
         // Calculate the word's width
         float WordWidth = 0.0f;
 
-        for (int j = 0; j < wordLength; j++) // For the amount of characters in the word
-        {
-            WordWidth += CharacterSize * scalingFactor; // Calculate the size of the word
-        }
+        WordWidth = wordLength* CharacterSize * scalingFactor;
 
         // Check if the word fits on the current line
         if (CurrentXPosition + WordWidth > linespace) //if the Word size cannot fit on the current line
@@ -163,17 +160,23 @@ int main()
             int asciiValue = (int)wordBuffer[j]; // Geting asciiValue for each character
             int charMovements = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray, &Numberofmovements); // retrieve character data for each character
 
-            ScaleCoordinates(&outputMovementArray[Numberofmovements - charMovements], charMovements, scalingFactor);    //apply a scale factor to character data
-            ApplyOffset(&outputMovementArray[Numberofmovements - charMovements], charMovements, CurrentXPosition, CurrentYPosition);//Offset each character 
+            ScaleCoordinates(&outputMovementArray[Numberofmovements - charMovements], charMovements, scalingFactor);    //apply a scale factor to character data to the current character only
+            ApplyOffset(&outputMovementArray[Numberofmovements - charMovements], charMovements, CurrentXPosition, CurrentYPosition);//Offset each character within the outputmovement array
 
             // Increment X position for the next character
             CurrentXPosition += CharacterSize * scalingFactor;
         }
 
-        int gCodeArraySize = Size * 64; //Initialising G code array
-        char *GcodeArray = (char *)malloc(gCodeArraySize * sizeof(char));   //dynamically allocating size of Gcode
+        char *GcodeArray;
+        GcodeArray = (char *) calloc (Size*64, sizeof(char));   //dynamically allocating size of Gcode
+        //check that memory could be allocated
+        if ( GcodeArray == NULL)
+        {
+            printf("\nMemory could not be allocated - terminatin");
+            return -1;
+        }
         GenerateGcode(outputMovementArray, GcodeArray, Numberofmovements);
-    
+        //Send the G codees to the arduino
         SendCommands(GcodeArray);
 
         free(GcodeArray); // free memory to allow space for new word
@@ -210,7 +213,7 @@ void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int
             GcodePosition += sprintf (&GcodeArray[GcodePosition], "G0 X%.2f Y%.2f\n", outputMovementArray[i].x, outputMovementArray[i].y);
         }
     }
-    GcodeArray[GcodePosition] = '\0'; // Null-terminate the string
+    GcodeArray[GcodePosition] = '\0'; 
 }
 
 // Function to apply offset to the x coordinates of the data
