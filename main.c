@@ -81,8 +81,8 @@ int main()
 
     struct Multi_FontData Fonts;
     const char *filename = "SingleStrokeFont.txt"; // Specify the file name
-    const float CharacterSize = 18.0;
-    const int linespace = 100.0;
+    const float CharacterWidth = 18.0;
+    const int LineWidth = 100.0;
 
     // Populate the FontData array from the font file
     PopulateFontDataArray(&Fonts, filename);
@@ -91,7 +91,7 @@ int main()
     float userInput = GetUserInput();
 
     // Calculate the scaling factor
-    float scalingFactor = userInput / CharacterSize; // Calculating a scaling factor from user input 
+    float scalingFactor = userInput / CharacterWidth; // Calculating a scaling factor from user input 
 
     // Ask the user for the name of the second text file
     char TextFileName[256]; //Creating a buffer to store the name of the text file
@@ -109,29 +109,29 @@ int main()
     float CurrentXPosition = 0.0f; // Track the x position
     float CurrentYPosition = 0.0f; // track the Y position
 
-    char wordBuffer[256]; // Creating a Buffer to store one word
+    char WordArray[256]; // Creating a Buffer to store one word
 
-    while (fscanf(Textfile,"%s",wordBuffer) != EOF)
+    while (fscanf( Textfile,"%s",WordArray) != EOF) ///Read one word of the text file at a time (fscanf reads until space)
     {
 
-        int wordLength = 0;   // Integer to store the length of the word
+        int wordLength = 0;   // Integer used to store the amount of characters in the word
 
-        while (wordBuffer[wordLength] != '\0') // Calculate word length
+        while (WordArray[wordLength] != '\0') // For each character in the WordArray
         {
-            wordLength++;
+            wordLength++;       //add one to the counter of word length
         }
 
         // Initialsing the word width
         float WordWidth = 0.0f;
 
         // Calculating the width of the word = number of characters in the word * Size of the character * Scaling factor
-        WordWidth = (float) wordLength* CharacterSize * scalingFactor; 
+        WordWidth = (float) wordLength* CharacterWidth * scalingFactor; 
 
         // Check if the word fits on the current line
-        if (CurrentXPosition + WordWidth > linespace) //if the Word size cannot fit on the current line
+        if (CurrentXPosition + WordWidth > LineWidth) //if the Word size cannot fit on the current line
         {
             CurrentXPosition = 0.0f;                            //Reset the xPosition back to the beginning of the line
-            CurrentYPosition -= (CharacterSize * scalingFactor + 5.0f); // Move the Y position down by the size of the letter and a 5mm gap (new line) 
+            CurrentYPosition -= (CharacterWidth * scalingFactor + 5.0f); // Move the Y position down by the size of the letter and a 5mm gap (new line) 
         }
 
         struct FontData outputMovementArray[Size];  //Creating Array to store the robot movements for each word
@@ -139,14 +139,14 @@ int main()
 
         for (int k = 0; k < wordLength; k++) //Looping through each character in the current word
         {
-            int asciiValue = (int)wordBuffer[k]; // Geting asciiValue for each character
+            int asciiValue = (int)WordArray[k]; // Geting asciiValue for each character
             int charMovements = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray, &Numberofmovements); // retrieve character data for each character
-
+    
             ScaleCoordinates(&outputMovementArray[Numberofmovements - charMovements], charMovements, scalingFactor);    //apply a scale factor to character data to the current character only
             ApplyOffset(&outputMovementArray[Numberofmovements - charMovements],charMovements, CurrentXPosition, CurrentYPosition);//Offset each character within the outputmovement array
 
             // Increment X position for the next character
-            CurrentXPosition += CharacterSize * scalingFactor;
+            CurrentXPosition += CharacterWidth * scalingFactor;
         }
 
         
