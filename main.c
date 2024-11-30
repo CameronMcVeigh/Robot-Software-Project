@@ -105,7 +105,7 @@ int main()
     scanf("%s", TextFileName);
 
     // Check if the second file can be opened
-    CheckFileIsOpen(TextFileName);
+    CheckFileIsOpen(TextFileName);  
 
     // Counting the number of characters in the text file so I can loop through each character
     int characterCount = CountCharactersInFile(TextFileName);
@@ -114,9 +114,9 @@ int main()
     char *charArray = ReadTextFileIntoArray(TextFileName, characterCount);
 
     // Buffer to store retrieved data
-    struct FontData outputMovementArray[Size];
-    int Numberofmovements = 0;
-
+    struct FontData outputMovementArray[Size];  //Creating Array to store the robot movements for each word
+    int Numberofmovements = 0;                  //integer used to store the number of robot movements for each word
+ 
     float CurrentXPosition = 0.0f; // Track the x position
     float CurrentYPosition = 0.0f; // track the Y position
 
@@ -178,10 +178,10 @@ int main()
         GenerateGcode(outputMovementArray, GcodeArray, Numberofmovements);
         //Send the G codees to the arduino
         SendCommands(GcodeArray);
-
+        
         free(GcodeArray); // free memory to allow space for new word
 
-        // Add a space after the word+
+        // Add a space after the word
         CurrentXPosition += 5.0f * scalingFactor;
     }
 
@@ -263,7 +263,6 @@ void CheckFileIsOpen(const char *filename)
         perror("Error opening file");
         exit(1);
     }
-    printf("The file '%s' was opened successfully.\n", filename);
     fclose(file); // Close the file after the check
 }
 
@@ -271,6 +270,10 @@ void CheckFileIsOpen(const char *filename)
 void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename) {
     int i;
     FILE *file = fopen(filename, "r"); // Open the file in read mode
+    if (file == NULL) 
+    {
+        printf("Error opening StrokeFontData file");
+    }
 
     // Read the file line by line
     for (i = 0; i < Size ; i++) 
@@ -337,7 +340,7 @@ char* ReadTextFileIntoArray(const char *filename, int characterCount)
     FILE *file = fopen(filename, "r");
     if (file == NULL) 
     {
-        printf("Error opening file");
+        printf("Error opening text file");
     }
 
     // Allocate memory for the character array
@@ -346,8 +349,8 @@ char* ReadTextFileIntoArray(const char *filename, int characterCount)
     // Read characters from the file into the array
     for (int i = 0; i < characterCount; i++) 
     {
-        int ch = fgetc(file);
-        charArray[i] = (char)ch;
+        int character = fgetc(file);
+        charArray[i] = (char)character;
     }
 
     fclose(file);
