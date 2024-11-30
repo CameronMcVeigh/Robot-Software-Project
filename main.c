@@ -104,14 +104,21 @@ int main()
     printf("\nPlease enter the name of the text file to be drawn: "); // Prompt user to enter name of the text file to be read
     scanf("%s", TextFileName);
 
-    // Check if the second file can be opened
-    CheckFileIsOpen(TextFileName);  
-
+    //Opening Textfile and checkign that file can be opened
+    FILE *Textfile = fopen(TextFileName, "r");
+    if (TextFileName == NULL)
+    {
+        printf("The text file could not be opened for reading");
+        return -1;
+    }
+    
     // Counting the number of characters in the text file so I can loop through each character
     int characterCount = CountCharactersInFile(TextFileName);
 
     // Create an array and read the file content into it
     char *TextArray = ReadTextFileIntoArray(TextFileName, characterCount);
+
+    fclose(Textfile);
  
     float CurrentXPosition = 0.0f; // Track the x position
     float CurrentYPosition = 0.0f; // track the Y position
@@ -151,13 +158,13 @@ int main()
         struct FontData outputMovementArray[Size];  //Creating Array to store the robot movements for each word
         int Numberofmovements = 0;                  //integer used to store the number of robot movements for each word
 
-        for (int j = 0; j < wordLength; j++) //Looping through each character in the current word
+        for (int k = 0; k < wordLength; k++) //Looping through each character in the current word
         {
-            int asciiValue = (int)wordBuffer[j]; // Geting asciiValue for each character
+            int asciiValue = (int)wordBuffer[k]; // Geting asciiValue for each character
             int charMovements = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray, &Numberofmovements); // retrieve character data for each character
 
             ScaleCoordinates(&outputMovementArray[Numberofmovements - charMovements], charMovements, scalingFactor);    //apply a scale factor to character data to the current character only
-            ApplyOffset(&outputMovementArray[Numberofmovements - charMovements], charMovements, CurrentXPosition, CurrentYPosition);//Offset each character within the outputmovement array
+            ApplyOffset(&outputMovementArray[Numberofmovements - charMovements],charMovements, CurrentXPosition, CurrentYPosition);//Offset each character within the outputmovement array
 
             // Increment X position for the next character
             CurrentXPosition += CharacterSize * scalingFactor;
@@ -201,13 +208,13 @@ void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int
     {
         if(outputMovementArray[i].z == 1.0)      // If pen is down
         {
-            GcodePosition += sprintf (&GcodeArray[GcodePosition], "S1000\n");//Print with S1000 and G1
-            GcodePosition += sprintf (&GcodeArray[GcodePosition], "G1 X%.2f Y%.2f \n ", outputMovementArray[i].x, outputMovementArray[i].y);
+            GcodePosition +=  sprintf (&GcodeArray[GcodePosition], "S1000\n");//Print with S1000 and G1
+            GcodePosition +=   sprintf (&GcodeArray[GcodePosition], "G1 X%f Y%f \n ", outputMovementArray[i].x, outputMovementArray[i].y);
         }
         else //if pen is up
         {
             GcodePosition += sprintf (&GcodeArray[GcodePosition], "S0\n"); // print with S0 and G0
-            GcodePosition += sprintf (&GcodeArray[GcodePosition], "G0 X%.2f Y%.2f\n", outputMovementArray[i].x, outputMovementArray[i].y);
+            GcodePosition +=  sprintf (&GcodeArray[GcodePosition], "G0 X%f Y%f\n", outputMovementArray[i].x, outputMovementArray[i].y);
         }
     }
     GcodeArray[GcodePosition] = '\0'; 
@@ -251,18 +258,6 @@ int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struc
     return count; // Return the number of movements collected
 }
 
-
-// Function to check if a file can be opened
-void CheckFileIsOpen(const char *filename) 
-{
-    FILE *file = fopen(filename, "r"); // Attempt to open the file
-    if (file == NULL) {
-        perror("Error opening file");
-        exit(1);
-    }
-    fclose(file); // Close the file after the check
-}
-
 // Function to populate FontDataArray
 void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename) {
     int i;
@@ -285,27 +280,25 @@ void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename) {
 float GetUserInput() 
 {
     float input;
-    do {
-        printf("Enter a font size between 4 and 10mm: ");
-        if (scanf("%f", &input) != 1) 
-        {  
-            while (getchar() != '\n '); // Clear invalid input from buffer
-            printf("The input Must be a number! \n ");
-            continue;
-        }
+    do 
+    {
+        printf("Pleade Enter a font size between 4 and 10 mm: ");   //Prompting user to give a input between 4 and 10 mm
+        scanf("%f", &input);                                        
+
         if (input < 4 || input > 10) 
         {
             printf("Please ensure input is in the correct range \n ");
         }
+        
     } while (input < 4 || input > 10);      // only accept a user input in the range of 4 to 10mm
     return input;
 }
 
 
 //Function to scale each coordiante
-void ScaleCoordinates(struct FontData outputMovementArray[], int count, float scalingFactor) 
+void ScaleCoordinates(struct FontData outputMovementArray[], int CharacterCount, float scalingFactor) 
 {
-    for (int i = 0; i < count; i++) 
+    for (int i = 0; i < CharacterCount; i++) 
     {
         outputMovementArray[i].x *= scalingFactor; //scale x cooridante by user input
         outputMovementArray[i].y *= scalingFactor; // scale y coordinate by user input
@@ -314,31 +307,23 @@ void ScaleCoordinates(struct FontData outputMovementArray[], int count, float sc
 
 int CountCharactersInFile(const char *filename) 
 {
-    FILE *file = fopen(filename, "r");  //open file
-    if (file == NULL)                   //Check that file can be opened
-    {                 
-        printf("Error opening file");
-        return -1;
-    }
-
-    int count = 0;
-    while (fgetc(file) != EOF)  //until we have reached the end of the file
+    FILE *TextFile = fopen(filename, "r");  //open file
+    
+    int CharacterCount = 0;
+    while (fgetc(TextFile) != EOF)  //until we have reached the end of the file
     { 
-        count++;        //count number of characters in the file
+        CharacterCount++;        //count number of characters in the file
     }
 
-    fclose(file); // Close the file
-    return count; // return the number of characters in the file
+    fclose(TextFile); // Close the file
+    return CharacterCount; // return the number of characters in the file
 }
 
 // Function to read file content into an array
 char* ReadTextFileIntoArray(const char *filename, int characterCount) 
 {
-    FILE *file = fopen(filename, "r");
-    if (file == NULL) 
-    {
-        printf("Error opening text file");
-    }
+    // Open the file for reading
+    FILE *TextFile = fopen(filename, "r");
 
     // Allocate memory for the character array
     char *TextArray = (char *)malloc(characterCount * sizeof(char));
@@ -346,11 +331,11 @@ char* ReadTextFileIntoArray(const char *filename, int characterCount)
     // Read characters from the file into the array
     for (int i = 0; i < characterCount; i++) 
     {
-        int character = fgetc(file);
+        int character = fgetc(TextFile);
         TextArray[i] = (char)character;
     }
 
-    fclose(file);
+    fclose(TextFile);
     return TextArray;
 }
 
