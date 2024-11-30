@@ -87,7 +87,7 @@ int main()
 
     struct Multi_FontData Fonts;
     const char *filename = "SingleStrokeFont.txt"; // Specify the file name
-    const int CharacterSize = 18.0;
+    const float CharacterSize = 18.0;
     const int linespace = 100.0;
 
     // Populate the FontData array from the font file
@@ -111,51 +111,47 @@ int main()
     int characterCount = CountCharactersInFile(TextFileName);
 
     // Create an array and read the file content into it
-    char *charArray = ReadTextFileIntoArray(TextFileName, characterCount);
-
-    // Buffer to store retrieved data
-    struct FontData outputMovementArray[Size];  //Creating Array to store the robot movements for each word
-    int Numberofmovements = 0;                  //integer used to store the number of robot movements for each word
+    char *TextArray = ReadTextFileIntoArray(TextFileName, characterCount);
  
     float CurrentXPosition = 0.0f; // Track the x position
     float CurrentYPosition = 0.0f; // track the Y position
 
-    for (int i=0; i< characterCount;) // Looping through the amount of characters in the text file
+    for (int i=0; i< characterCount;) // Looping through the amount of characters in the text file to process one word at a time
     {
 
         char wordBuffer[256]; // Creating a Buffer to store one word
         int wordLength = 0;   // Integer to store the length of the word
 
-        while (i < characterCount && charArray[i] != 32)    //For each character until we reach a space
+        while (i < characterCount && TextArray[i] != 32)    //For each character until we reach a space
         { // Not a space
-            wordBuffer[wordLength] = charArray[i];      //Adding each character to a word 
-            i++;
-            wordLength++;
+            wordBuffer[wordLength] = TextArray[i];      //Adding each character to a word 
+            i++;                                        //increasing the count of which character we are on in the text file
+            wordLength++;                               //counting how many characters are in the current word
         }
 
         // Skip the space
-        if (i < characterCount && charArray[i] == 32) 
+        if (i < characterCount && TextArray[i] == 32) 
         {
             i++;
         }
 
-        // Calculate the word's width
+        // Initialsing the word width
         float WordWidth = 0.0f;
 
-        WordWidth = wordLength* CharacterSize * scalingFactor;
+        // Calculating the width of the word = number of characters in the word * Size of the character * Scaling factor
+        WordWidth = (float) wordLength* CharacterSize * scalingFactor; 
 
         // Check if the word fits on the current line
         if (CurrentXPosition + WordWidth > linespace) //if the Word size cannot fit on the current line
         {
             CurrentXPosition = 0.0f;                            //Reset the xPosition back to the beginning of the line
-            CurrentYPosition -= (CharacterSize * scalingFactor + 5.0f); // Move the Y position down by the size of the letter with a 5mm gap (new line) 
+            CurrentYPosition -= (CharacterSize * scalingFactor + 5.0f); // Move the Y position down by the size of the letter and a 5mm gap (new line) 
         }
 
+        struct FontData outputMovementArray[Size];  //Creating Array to store the robot movements for each word
+        int Numberofmovements = 0;                  //integer used to store the number of robot movements for each word
 
-        struct FontData outputMovementArray[Size]; // Creating a Array for the output Movements for each character
-        int Numberofmovements = 0;
-
-        for (int j = 0; j < wordLength; j++) //Looping through each character in the word
+        for (int j = 0; j < wordLength; j++) //Looping through each character in the current word
         {
             int asciiValue = (int)wordBuffer[j]; // Geting asciiValue for each character
             int charMovements = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray, &Numberofmovements); // retrieve character data for each character
@@ -167,26 +163,27 @@ int main()
             CurrentXPosition += CharacterSize * scalingFactor;
         }
 
-        char *GcodeArray;
+        
+        char *GcodeArray;                                       //Initialise Gcode - Array of chars
         GcodeArray = (char *) calloc (Size*64, sizeof(char));   //dynamically allocating size of Gcode
         //check that memory could be allocated
         if ( GcodeArray == NULL)
         {
-            printf("\nMemory could not be allocated - terminatin");
+            printf("\nMemory can not be properly allocated ");
             return -1;
         }
-        GenerateGcode(outputMovementArray, GcodeArray, Numberofmovements);
-        //Send the G codees to the arduino
-        SendCommands(GcodeArray);
+        GenerateGcode(outputMovementArray, GcodeArray, Numberofmovements); // call function to generate the G code from each line of CharacterData
+       
+        SendCommands(GcodeArray);   //Send the G codees to the arduin
         
-        free(GcodeArray); // free memory to allow space for new word
+        free(GcodeArray);    // free memory to allow space for the next word
 
-        // Add a space after the word
+        // increase the X position to create a space after the word
         CurrentXPosition += 5.0f * scalingFactor;
     }
 
-    //freeing memory
-    free(charArray);
+    //freeing memory from Text Array
+    free(TextArray);
 
     CloseRS232Port();
     printf("Com port now closed\n");
@@ -344,17 +341,17 @@ char* ReadTextFileIntoArray(const char *filename, int characterCount)
     }
 
     // Allocate memory for the character array
-    char *charArray = (char *)malloc(characterCount * sizeof(char));
+    char *TextArray = (char *)malloc(characterCount * sizeof(char));
 
     // Read characters from the file into the array
     for (int i = 0; i < characterCount; i++) 
     {
         int character = fgetc(file);
-        charArray[i] = (char)character;
+        TextArray[i] = (char)character;
     }
 
     fclose(file);
-    return charArray;
+    return TextArray;
 }
 
 // Send the data to the robot - note in 'PC' mode you need to hit space twice
