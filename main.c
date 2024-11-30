@@ -34,12 +34,6 @@ void ScaleCoordinates(struct FontData outputMovementArray[], int count, float sc
 //Function to check if file is open
 void CheckFileIsOpen(const char *filename);
 
-//Function to count number of characters in the file
-int CountCharactersInFile(const char *filename);
-
-//Function to store text from file into array of characters
-char* ReadTextFileIntoArray(const char *filename, int characterCount);
-
 //Function to retrieve character data
 int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue,struct FontData outputMovementArray[], int *Numberofmovements);
 
@@ -101,7 +95,7 @@ int main()
 
     // Ask the user for the name of the second text file
     char TextFileName[256]; //Creating a buffer to store the name of the text file
-    printf("\nPlease enter the name of the text file to be drawn: "); // Prompt user to enter name of the text file to be read
+    printf("\n Please enter the name of the text file to be drawn by robot: "); // Prompt user to enter name of the text file to be read
     scanf("%s", TextFileName);
 
     //Opening Textfile and checkign that file can be opened
@@ -112,34 +106,19 @@ int main()
         return -1;
     }
     
-    // Counting the number of characters in the text file so I can loop through each character
-    int characterCount = CountCharactersInFile(TextFileName);
-
-    // Create an array and read the file content into it
-    char *TextArray = ReadTextFileIntoArray(TextFileName, characterCount);
-
-    fclose(Textfile);
- 
     float CurrentXPosition = 0.0f; // Track the x position
     float CurrentYPosition = 0.0f; // track the Y position
 
-    for (int i=0; i< characterCount;) // Looping through the amount of characters in the text file to process one word at a time
+    char wordBuffer[256]; // Creating a Buffer to store one word
+
+    while (fscanf(Textfile,"%s",wordBuffer) != EOF)
     {
 
-        char wordBuffer[256]; // Creating a Buffer to store one word
         int wordLength = 0;   // Integer to store the length of the word
 
-        while (i < characterCount && TextArray[i] != 32)    //For each character until we reach a space
-        { // Not a space
-            wordBuffer[wordLength] = TextArray[i];      //Adding each character to a word 
-            i++;                                        //increasing the count of which character we are on in the text file
-            wordLength++;                               //counting how many characters are in the current word
-        }
-
-        // Skip the space
-        if (i < characterCount && TextArray[i] == 32) 
+        while (wordBuffer[wordLength] != '\0') // Calculate word length
         {
-            i++;
+            wordLength++;
         }
 
         // Initialsing the word width
@@ -189,9 +168,7 @@ int main()
         CurrentXPosition += 5.0f * scalingFactor;
     }
 
-    //freeing memory from Text Array
-    free(TextArray);
-
+    fclose(Textfile);
     CloseRS232Port();
     printf("Com port now closed\n");
 
@@ -204,7 +181,7 @@ void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int
 {
     int GcodePosition = 0; //Tracking the GcodePosition so i can move through array
 
-    for (int i=0; i < Numberofmovements; i++) // loop through each struct in outputMovementArray
+    for (int i=0;i<Numberofmovements;i++) // loop through each struct in outputMovementArray
     {
         if(outputMovementArray[i].z == 1.0)      // If pen is down
         {
@@ -217,7 +194,6 @@ void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int
             GcodePosition +=  sprintf (&GcodeArray[GcodePosition], "G0 X%f Y%f\n", outputMovementArray[i].x, outputMovementArray[i].y);
         }
     }
-    GcodeArray[GcodePosition] = '\0'; 
 }
 
 // Function to apply offset to the x coordinates of the data
@@ -233,7 +209,7 @@ void ApplyOffset(struct FontData outputMovementArray[], int count, float Current
 // Function to retrieve character data for a given ASCII value
 int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struct FontData outputMovementArray[], int *Numberofmovements) 
 {
-    int count = 0; // Number of movements for the current character
+    int NumberofLinesToCopy = 0; // Number of movements for the current character
 
     for (int i = 0; i < Size; i++) 
     {
@@ -241,12 +217,12 @@ int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struc
         if (FontDataArray[i].x== 999 && FontDataArray[i].y== asciiValue) 
         {
             // Get the amount of following lines to be read into the outputArray
-            count = (int)FontDataArray[i].z;
+            NumberofLinesToCopy = (int)FontDataArray[i].z;
 
-            // Copy each line into the outputArray for the specified amount of line
-            for (int k = 0; k < count; k++) 
+            // Copy each line into the outputArray for the specified amount of lines
+            for (int k = 0; k <NumberofLinesToCopy; k++) 
             {
-                int index = i + 1 + k; // Offset from the current `999` line
+                int index = i + 1 + k; // To preevent the line starting with 999 to be read
             
                 outputMovementArray[*Numberofmovements] = FontDataArray[index];
                 (*Numberofmovements)++;
@@ -255,7 +231,7 @@ int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struc
         }
     }
 
-    return count; // Return the number of movements collected
+    return NumberofLinesToCopy; // Return the number of movements collected
 }
 
 // Function to populate FontDataArray
@@ -287,13 +263,12 @@ float GetUserInput()
 
         if (input < 4 || input > 10) 
         {
-            printf("Please ensure input is in the correct range \n ");
+            printf("Please ensure input value is between 4 and 10mm \n ");
         }
         
     } while (input < 4 || input > 10);      // only accept a user input in the range of 4 to 10mm
     return input;
 }
-
 
 //Function to scale each coordiante
 void ScaleCoordinates(struct FontData outputMovementArray[], int CharacterCount, float scalingFactor) 
@@ -303,40 +278,6 @@ void ScaleCoordinates(struct FontData outputMovementArray[], int CharacterCount,
         outputMovementArray[i].x *= scalingFactor; //scale x cooridante by user input
         outputMovementArray[i].y *= scalingFactor; // scale y coordinate by user input
     }
-}
-
-int CountCharactersInFile(const char *filename) 
-{
-    FILE *TextFile = fopen(filename, "r");  //open file
-    
-    int CharacterCount = 0;
-    while (fgetc(TextFile) != EOF)  //until we have reached the end of the file
-    { 
-        CharacterCount++;        //count number of characters in the file
-    }
-
-    fclose(TextFile); // Close the file
-    return CharacterCount; // return the number of characters in the file
-}
-
-// Function to read file content into an array
-char* ReadTextFileIntoArray(const char *filename, int characterCount) 
-{
-    // Open the file for reading
-    FILE *TextFile = fopen(filename, "r");
-
-    // Allocate memory for the character array
-    char *TextArray = (char *)malloc(characterCount * sizeof(char));
-
-    // Read characters from the file into the array
-    for (int i = 0; i < characterCount; i++) 
-    {
-        int character = fgetc(TextFile);
-        TextArray[i] = (char)character;
-    }
-
-    fclose(TextFile);
-    return TextArray;
 }
 
 // Send the data to the robot - note in 'PC' mode you need to hit space twice
