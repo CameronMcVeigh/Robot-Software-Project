@@ -43,6 +43,9 @@ void ApplyOffset(struct FontData outputMovementArray[], int count, float Positio
 //Function to generate G Code
 void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int Numberofmovements);
 
+//Funcion to calculate word width
+float CalculateWordWidth(int WordLength, float CharacterWidth,float scalingFactor);
+
 
 int main()
 {
@@ -100,7 +103,7 @@ int main()
 
     //Opening Textfile and checkign that file can be opened
     FILE *Textfile = fopen(TextFileName, "r");
-    if (TextFileName == NULL)
+    if (Textfile == NULL)
     {
         printf("The text file could not be opened for reading");
         return -1;
@@ -114,19 +117,10 @@ int main()
     while (fscanf( Textfile,"%s",WordArray) != EOF) ///Read one word of the text file at a time (fscanf reads until space)
     {
 
-        int wordLength = 0;   // Integer used to store the amount of characters in the word
-
-        while (WordArray[wordLength] != '\0') // For each character in the WordArray
-        {
-            wordLength++;       //add one to the counter of word length
-        }
-
-        // Initialsing the word width
-        float WordWidth = 0.0f;
-
-        // Calculating the width of the word = number of characters in the word * Size of the character * Scaling factor
-        WordWidth = (float) wordLength* CharacterWidth * scalingFactor; 
-
+        int WordLength = strlen(WordArray);// Integer used to store the amount of characters in the word
+       
+        float WordWidth = CalculateWordWidth(WordLength, CharacterWidth,scalingFactor);
+        
         // Check if the word fits on the current line
         if (CurrentXPosition + WordWidth > LineWidth) //if the Word size cannot fit on the current line
         {
@@ -137,11 +131,11 @@ int main()
         struct FontData outputMovementArray[Size];  //Creating Array to store the robot movements for each word
         int Numberofmovements = 0;                  //integer used to store the number of robot movements for each word
 
-        for (int k = 0; k < wordLength; k++) //Looping through each character in the current word
+        for (int k = 0; k < WordLength; k++) //Looping through each character in the current word
         {
             int asciiValue = (int)WordArray[k]; // Geting asciiValue for each character
             int charMovements = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray, &Numberofmovements); // retrieve character data for each character
-    
+        
             ScaleCoordinates(&outputMovementArray[Numberofmovements - charMovements], charMovements, scalingFactor);    //apply a scale factor to character data to the current character only
             ApplyOffset(&outputMovementArray[Numberofmovements - charMovements],charMovements, CurrentXPosition, CurrentYPosition);//Offset each character within the outputmovement array
 
@@ -151,7 +145,7 @@ int main()
 
         
         char *GcodeArray;                                       //Initialise Gcode - Array of chars
-        GcodeArray = (char *) calloc (Size*64, sizeof(char));   //dynamically allocating size of Gcode
+        GcodeArray = (char *) calloc (2*Size*24, sizeof(char));   //dynamically allocating size of Gcode
         //check that memory could be allocated
         if ( GcodeArray == NULL)
         {
@@ -280,6 +274,17 @@ void ScaleCoordinates(struct FontData outputMovementArray[], int CharacterCount,
     }
 }
 
+//Function to calculate word width
+float CalculateWordWidth(int WordLength, float CharacterWidth,float scalingFactor)
+{
+    // Initialsing the word width
+    float WordWidth = 0.0f;
+
+    // Calculating the width of the word = number of characters in the word * Size of the character * Scaling factor
+    WordWidth = (float) WordLength* CharacterWidth * scalingFactor;
+
+    return WordWidth;
+}
 // Send the data to the robot - note in 'PC' mode you need to hit space twice
 // as the dummy 'WaitForReply' has a getch() within the function.
 void SendCommands (char *buffer )
