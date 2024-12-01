@@ -86,6 +86,7 @@ int main()
     const char *filename = "SingleStrokeFont.txt"; // Specify the file name
     const float CharacterWidth = 18.0;
     const int LineWidth = 100.0;
+    const int CharactersPerMovement = 32;
 
     // Populate the FontData array from the font file
     PopulateFontDataArray(&Fonts, filename);
@@ -112,7 +113,7 @@ int main()
     float CurrentXPosition = 0.0f; // Track the x position
     float CurrentYPosition = 0.0f; // track the Y position
 
-    char WordArray[256]; // Creating a Buffer to store one word
+    char WordArray[256]; // Creating an array to store each word
 
     while (fscanf( Textfile,"%s",WordArray) != EOF) ///Read one word of the text file at a time (fscanf reads until space)
     {
@@ -143,7 +144,6 @@ int main()
             CurrentXPosition += CharacterWidth * scalingFactor;
         }
 
-        int CharactersPerMovement = 32;
         int TotalSizeOfGcode = Numberofmovements * CharactersPerMovement;
         
         char *GcodeArray;                                       //Initialise Gcode - Array of chars
