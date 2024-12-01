@@ -143,9 +143,11 @@ int main()
             CurrentXPosition += CharacterWidth * scalingFactor;
         }
 
+        int CharactersPerMovement = 32;
+        int TotalSizeOfGcode = Numberofmovements * CharactersPerMovement;
         
         char *GcodeArray;                                       //Initialise Gcode - Array of chars
-        GcodeArray = (char *) calloc (2*Size*24, sizeof(char));   //dynamically allocating size of Gcode
+        GcodeArray = (char *) calloc (TotalSizeOfGcode, sizeof(char));   //dynamically allocating size of Gcode
         //check that memory could be allocated
         if ( GcodeArray == NULL)
         {
