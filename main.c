@@ -162,6 +162,9 @@ int main()
         CurrentXPosition += 5.0f * scalingFactor;
     }
 
+    sprintf(buffer,"S0\nG0 X0 Y0"); // move robot arm back to (0,0)
+    SendCommands(buffer);
+
     fclose(Textfile);
     CloseRS232Port();
     printf("Com port now closed\n");
@@ -177,15 +180,13 @@ void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int
 
     for (int i=0;i<Numberofmovements;i++) // loop through each struct in outputMovementArray
     {
-        if(outputMovementArray[i].z == 1.0)      // If pen is down
+        if(outputMovementArray[i].z == 1.0)      // If pen is down print with S1000 for spindle speed and G1
         {
-            GcodePosition +=  sprintf (&GcodeArray[GcodePosition], "S1000\n");//Print with S1000 and G1
-            GcodePosition +=   sprintf (&GcodeArray[GcodePosition], "G1 X%f Y%f \n ", outputMovementArray[i].x, outputMovementArray[i].y);
+            GcodePosition +=  sprintf (&GcodeArray[GcodePosition], "S1000\nG1 X%f Y%f \n", outputMovementArray[i].x, outputMovementArray[i].y);
         }
-        else //if pen is up
+        else //if pen is up print with S0 and G0
         {
-            GcodePosition += sprintf (&GcodeArray[GcodePosition], "S0\n"); // print with S0 and G0
-            GcodePosition +=  sprintf (&GcodeArray[GcodePosition], "G0 X%f Y%f\n", outputMovementArray[i].x, outputMovementArray[i].y);
+            GcodePosition +=  sprintf (&GcodeArray[GcodePosition], "S0\nG0 X%f Y%f \n", outputMovementArray[i].x, outputMovementArray[i].y);
         }
     }
 }
@@ -216,9 +217,9 @@ int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struc
             // Copy each line into the outputArray for the specified amount of lines
             for (int k = 0; k <NumberofLinesToCopy; k++) 
             {
-                int index = i + 1 + k; // To preevent the line starting with 999 to be read
+                int FontDataline = i + 1 + k; // To preevent the line starting with 999 to be read
             
-                outputMovementArray[*Numberofmovements] = FontDataArray[index];
+                outputMovementArray[*Numberofmovements] = FontDataArray[FontDataline];
                 (*Numberofmovements)++;
             }
            // break; // Exit after processing the current character
