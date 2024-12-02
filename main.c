@@ -31,9 +31,6 @@ float GetUserInput();
 //Function to apply scaled value
 void ScaleCoordinates(struct FontData outputMovementArray[], int count, float scalingFactor);
 
-//Function to check if file is open
-void CheckFileIsOpen(const char *filename);
-
 //Function to retrieve character data
 int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue,struct FontData outputMovementArray[], int *Numberofmovements);
 
@@ -119,7 +116,7 @@ int main()
     while (fscanf( Textfile,"%s",WordArray) != EOF) ///Read one word of the text file at a time (fscanf reads until space)
     {
 
-        int WordLength = strlen(WordArray);// Integer used to store the amount of characters in the word
+        int WordLength = (int) strlen(WordArray);// Integer used to store the amount of characters in the word
        
         float WordWidth = CalculateWordWidth(WordLength, CharacterWidth,scalingFactor);
         
@@ -145,14 +142,14 @@ int main()
             CurrentXPosition += CharacterWidth * scalingFactor;
         }
 
-        int TotalSizeOfGcode = Numberofmovements * CharactersPerMovement;
+        size_t TotalSizeOfGcode = Numberofmovements * CharactersPerMovement;
         
-        char *GcodeArray;                                       //Initialise Gcode - Array of chars
-        GcodeArray = (char *) calloc (TotalSizeOfGcode, sizeof(char));   //dynamically allocating size of Gcode
+        char *GcodeArray;                                                 //Initialise Gcode - Array of chars
+        GcodeArray = (char *) calloc (TotalSizeOfGcode, sizeof(char));   //dynamically allocating size of Gcode Array
         //check that memory could be allocated
         if ( GcodeArray == NULL)
         {
-            printf("\nMemory can not be properly allocated ");
+            printf("\nMemory for the Gcode can't be properly allocated ");
             return -1;
         }
         GenerateGcode(outputMovementArray, GcodeArray, Numberofmovements); // call function to generate the G code from each line of CharacterData
