@@ -46,7 +46,6 @@ void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int
 //Funcion to calculate word width
 float CalculateWordWidth(int WordLength, float CharacterWidth,float scalingFactor);
 
-
 int main()
 {
 
@@ -115,6 +114,8 @@ int main()
 
     char WordArray[256]; // Creating an array to store each word
 
+    CurrentYPosition -= (CharacterWidth * scalingFactor);
+
     while (fscanf( Textfile,"%s",WordArray) != EOF) ///Read one word of the text file at a time (fscanf reads until space)
     {
 
@@ -122,7 +123,7 @@ int main()
        
         float WordWidth = CalculateWordWidth(WordLength, CharacterWidth,scalingFactor);
         
-        // Check if the word fits on the current line
+       
         if (CurrentXPosition + WordWidth > LineWidth) //if the Word size cannot fit on the current line
         {
             CurrentXPosition = 0.0f;                            //Reset the xPosition back to the beginning of the line
@@ -174,11 +175,10 @@ int main()
     return 0;
 }
 
-
 //Function to generate G code
 void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int Numberofmovements)
 {
-    int GcodePosition = 0; //Tracking the GcodePosition so i can move through array
+    int GcodePosition = 0; //Tracking the GcodePosition to move through array
 
     for (int i=0;i<Numberofmovements;i++) // loop through each struct in outputMovementArray
     {
@@ -221,8 +221,8 @@ int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struc
             {
                 int FontDataline = i + 1 + k; // To preevent the line starting with 999 to be read
             
-                outputMovementArray[*Numberofmovements] = FontDataArray[FontDataline];
-                (*Numberofmovements)++;
+                outputMovementArray[*Numberofmovements] = FontDataArray[FontDataline];  //Copy the line from FontDataArray into OutputMovementArray
+                (*Numberofmovements)++; // increment the number of movements per word
             }
            // break; // Exit after processing the current character
         }
