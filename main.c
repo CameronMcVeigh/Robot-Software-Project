@@ -29,16 +29,16 @@ void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename);
 float GetUserInput();
 
 //Function to apply scaled value
-void ScaleCoordinates(struct FontData outputMovementArray[], int count, float scalingFactor);
+void ScaleCoordinates(struct FontData outputMovementArray[], int NumCharMovements, float scalingFactor);
 
 //Function to retrieve character data
 int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue,struct FontData outputMovementArray[], int *Numberofmovements);
 
 //Function to apply offset
-void ApplyOffset(struct FontData outputMovementArray[], int count, float PositionX, float PositionY);
+void ApplyOffset(struct FontData outputMovementArray[], int NumCharMovements, float PositionX, float PositionY);
 
 //Function to generate G Code
-void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int Numberofmovements);
+void GenerateGcode(struct FontData outputMovementArray[], int Numberofmovements);
 
 //Funcion to calculate word width
 float CalculateWordWidth(int WordLength, float CharacterWidth,float scalingFactor);
@@ -82,7 +82,6 @@ int main()
     const char *filename = "SingleStrokeFont.txt"; // Specify the file name
     const float CharacterWidth = 18.0;
     const int LineWidth = 100.0;
-    const int CharactersPerMovement = 32;
 
     // Populate the FontData array from the font file
     PopulateFontDataArray(&Fonts, filename);
@@ -113,56 +112,41 @@ int main()
 
     CurrentYPosition -= (CharacterWidth * scalingFactor);
 
-    while (fscanf( Textfile,"%s",WordArray) != EOF) ///Read one word of the text file at a time (fscanf reads until space)
+    while (fscanf(Textfile, "%s", WordArray) != EOF) // Read one word at a time
     {
+        int WordLength = (int)strlen(WordArray);
+        float WordWidth = CalculateWordWidth(WordLength, CharacterWidth, scalingFactor);
 
-        int WordLength = (int) strlen(WordArray);// Integer used to store the amount of characters in the word
-       
-        float WordWidth = CalculateWordWidth(WordLength, CharacterWidth,scalingFactor);
-        
-       
-        if (CurrentXPosition + WordWidth > LineWidth) //if the Word size cannot fit on the current line
+        if (CurrentXPosition + WordWidth > LineWidth) // Word doesn't fit on the current line
         {
-            CurrentXPosition = 0.0f;                            //Reset the xPosition back to the beginning of the line
-            CurrentYPosition -= (CharacterWidth * scalingFactor + 5.0f); // Move the Y position down by the size of the letter and a 5mm gap (new line) 
+            CurrentXPosition = 0.0f; // Reset x-position
+            CurrentYPosition -= (CharacterWidth * scalingFactor + 5.0f); // Move to the next line
         }
 
-        struct FontData outputMovementArray[Size];  //Creating Array to store the robot movements for each word
-        int Numberofmovements = 0;                  //integer used to store the number of robot movements for each word
+        struct FontData outputMovementArray[Size];
+        int Numberofmovements = 0;
 
-        for (int k = 0; k < WordLength; k++) //Looping through each character in the current word
+        for (int k = 0; k < WordLength; k++)
         {
-            int asciiValue = (int)WordArray[k]; // Geting asciiValue for each character
-            int charMovements = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray, &Numberofmovements); // retrieve character data for each character
-        
-            ScaleCoordinates(&outputMovementArray[Numberofmovements - charMovements], charMovements, scalingFactor);    //apply a scale factor to character data to the current character only
-            ApplyOffset(&outputMovementArray[Numberofmovements - charMovements],charMovements, CurrentXPosition, CurrentYPosition);//Offset each character within the outputmovement array
+            int asciiValue = (int)WordArray[k];
+            int NumCharMovements = RetrieveCharacterData(Fonts.Font, asciiValue, outputMovementArray, &Numberofmovements);
 
-            // Increment X position for the next character
-            CurrentXPosition += CharacterWidth * scalingFactor;
+            ScaleCoordinates(&outputMovementArray[Numberofmovements - NumCharMovements], NumCharMovements, scalingFactor);
+            ApplyOffset(&outputMovementArray[Numberofmovements - NumCharMovements], NumCharMovements, CurrentXPosition, CurrentYPosition);
+
+            CurrentXPosition += CharacterWidth * scalingFactor; // Increment x-position for the next character
         }
 
-        size_t TotalSizeOfGcode = Numberofmovements * CharactersPerMovement;
-        
-        char *GcodeArray;                                                 //Initialise Gcode - Array of chars
-        GcodeArray = (char *) calloc (TotalSizeOfGcode, sizeof(char));   //dynamically allocating size of Gcode Array
-        //check that memory could be allocated
-        if ( GcodeArray == NULL)
-        {
-            printf("\nMemory for the Gcode can't be properly allocated ");
-            return -1;
-        }
-        GenerateGcode(outputMovementArray, GcodeArray, Numberofmovements); // call function to generate the G code from each line of CharacterData
-       
-        SendCommands(GcodeArray);   //Send the G codees to the arduin
-        
-        free(GcodeArray);    // free memory to allow space for the next word
+        GenerateGcode(outputMovementArray, Numberofmovements); // Generate and send G code, line by line for the current word
 
-        // increase the X position to create a space after the word
-        CurrentXPosition += 5.0f * scalingFactor;
+        CurrentXPosition += 18.0f * scalingFactor; // Add space after the word
     }
 
-    sprintf(buffer,"S0\nG0 X0 Y0"); // move robot arm back to (0,0)
+
+    sprintf(buffer,"S0\n"); // move robot arm back to (0,0)
+    SendCommands(buffer);
+
+    sprintf(buffer, "G0 X0 Y0\n");
     SendCommands(buffer);
 
     fclose(Textfile);
@@ -172,28 +156,34 @@ int main()
     return 0;
 }
 
-//Function to generate G code
-void GenerateGcode(struct FontData outputMovementArray[], char GcodeArray[], int Numberofmovements)
+//function to generate G code
+void GenerateGcode(struct FontData outputMovementArray[], int Numberofmovements)
 {
-    int GcodePosition = 0; //Tracking the GcodePosition to move through array
-
-    for (int i=0;i<Numberofmovements;i++) // loop through each struct in outputMovementArray
+    char buffer[32]; // Buffer to hold a single line of G-code
+    for (int i = 0; i < Numberofmovements; i++) // Loop through each movement
     {
-        if(outputMovementArray[i].z == 1.0)      // If pen is down print with S1000 for spindle speed and G1
+        
+        if (outputMovementArray[i].z == 1.0) // If pen is down
         {
-            GcodePosition +=  sprintf (&GcodeArray[GcodePosition], "S1000\nG1 X%f Y%f \n", outputMovementArray[i].x, outputMovementArray[i].y);
+            sprintf(buffer, "S1000\n"); // Send SPingle SPeed
+            SendCommands(buffer); 
+            sprintf(buffer, "G1 X%.5f Y%.5f\n", outputMovementArray[i].x, outputMovementArray[i].y); // G1 command
         }
-        else //if pen is up print with S0 and G0
+        else // If pen is up
         {
-            GcodePosition +=  sprintf (&GcodeArray[GcodePosition], "S0\nG0 X%f Y%f \n", outputMovementArray[i].x, outputMovementArray[i].y);
+            sprintf(buffer, "S0\n"); // Send spindle speed
+            SendCommands(buffer); 
+            sprintf(buffer, "G0 X%.5f Y%.5f\n", outputMovementArray[i].x, outputMovementArray[i].y); // G0 command
         }
+
+        SendCommands(buffer); // Send the G1 or G0 line
     }
 }
 
 // Function to apply offset to the x coordinates of the data
-void ApplyOffset(struct FontData outputMovementArray[], int count, float CurrentXPosition, float CurrentYPosition)
+void ApplyOffset(struct FontData outputMovementArray[], int NumCharMovements, float CurrentXPosition, float CurrentYPosition)
 {
-    for (int i = 0; i < count; i++) // looping through each  
+    for (int i = 0; i < NumCharMovements; i++) // looping through each  
     {
         outputMovementArray[i].x +=  CurrentXPosition;
         outputMovementArray[i].y +=  CurrentYPosition;
@@ -252,7 +242,7 @@ float GetUserInput()
     float input;
     do 
     {
-        printf("Pleade Enter a font size between 4 and 10 mm: ");   //Prompting user to give a input between 4 and 10 mm
+        printf("Please Enter a font size between 4 and 10 mm: ");   //Prompting user to give a input between 4 and 10 mm
         scanf("%f", &input);                                        
 
         if (input < 4 || input > 10) 
@@ -265,9 +255,9 @@ float GetUserInput()
 }
 
 //Function to scale each coordiante
-void ScaleCoordinates(struct FontData outputMovementArray[], int CharacterCount, float scalingFactor) 
+void ScaleCoordinates(struct FontData outputMovementArray[], int NumCharMovements, float scalingFactor) 
 {
-    for (int i = 0; i < CharacterCount; i++) 
+    for (int i = 0; i < NumCharMovements; i++) 
     {
         outputMovementArray[i].x *= scalingFactor; //scale x cooridante by user input
         outputMovementArray[i].y *= scalingFactor; // scale y coordinate by user input
@@ -277,11 +267,8 @@ void ScaleCoordinates(struct FontData outputMovementArray[], int CharacterCount,
 //Function to calculate word width
 float CalculateWordWidth(int WordLength, float CharacterWidth,float scalingFactor)
 {
-    // Initialsing the word width
-    float WordWidth = 0.0f;
-
     // Calculating the width of the word = number of characters in the word * Size of the character * Scaling factor
-    WordWidth = (float) WordLength* CharacterWidth * scalingFactor;
+    float WordWidth = (float) WordLength* CharacterWidth * scalingFactor;
 
     return WordWidth;
 }
