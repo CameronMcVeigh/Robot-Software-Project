@@ -154,25 +154,25 @@ int main()
 }
 
 //function to generate G code
-void GenerateGcode(struct FontData charMovementArray[], int NumCharMovements)
+void GenerateGcode(struct FontData CharMovementArray[], int NumCharMovements)
 {
-    char buffer[32]; //buffer to hold a single line of G-code
+    char GcodeArray[32]; //buffer to hold a single line of G-code
     for (int i = 0; i < NumCharMovements; i++) // Loop through each movement for the character being converted into G code
     {
-        if (charMovementArray[i].z == 1.0) ///If the pen is down
+        if (CharMovementArray[i].z == 1.0) ///If the pen is down
         {
-            sprintf(buffer, "S1000\n");  //Send spindle speed as S1000
-            SendCommands(buffer); 
-            sprintf(buffer, "G1 X%.5f Y%.5f\n", charMovementArray[i].x, charMovementArray[i].y); /// Send the coordinates with G1
+            sprintf(GcodeArray, "S1000\n");  //Send spindle speed as S1000
+            SendCommands(GcodeArray); 
+            sprintf(GcodeArray, "G1 X%.5f Y%.5f\n", CharMovementArray[i].x, CharMovementArray[i].y); /// Send the coordinates with G1
         }
         else // If  thpen is up
         {
-            sprintf(buffer, "S0\n");    //Semd the spindle speed as S0
-            SendCommands(buffer); 
-            sprintf(buffer, "G0 X%.5f Y%.5f\n", charMovementArray[i].x, charMovementArray[i].y); //Send the Coordinates with G0
+            sprintf(GcodeArray, "S0\n");    //Semd the spindle speed as S0
+            SendCommands(GcodeArray); 
+            sprintf(GcodeArray, "G0 X%.5f Y%.5f\n", CharMovementArray[i].x, CharMovementArray[i].y); //Send the Coordinates with G0
         }
 
-        SendCommands(buffer);   ///Send the line with either G1 or G0 to arduino
+        SendCommands(GcodeArray);   ///Send the line with either G1 or G0 to arduino
     }
 }
 
