@@ -133,7 +133,7 @@ int main()
 
             ScaleCoordinates(charMovementArray, NumCharMovements, scalingFactor);   //scale the character by pre-calculated scale factor
             ApplyOffset(charMovementArray, NumCharMovements, CurrentXPosition, CurrentYPosition);   //offset the character from the character before it
-            GenerateGcode(charMovementArray, NumCharMovements); // Generate and send Gcode for the current character , line by line
+            GenerateGcode(charMovementArray, NumCharMovements); // Generate and send Gcode for each character in the word , line by line
 
             CurrentXPosition += CharacterWidth * scalingFactor; // Increment X position for the next character
         }
@@ -181,8 +181,8 @@ void ApplyOffset(struct FontData charMovementArray[], int NumCharMovements, floa
 {
     for (int i = 0; i < NumCharMovements; i++) // Looping through each  
     {
-        charMovementArray[i].x +=  CurrentXPosition;
-        charMovementArray[i].y +=  CurrentYPosition;
+        charMovementArray[i].x +=  CurrentXPosition;    //Apply X offset
+        charMovementArray[i].y +=  CurrentYPosition;    //Apply y offset
     }
 
 }
@@ -194,9 +194,8 @@ int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struc
     int NumberofLinesToCopy = 0; /// Integer to store the number of movements for the current character
 
     for (int i = 0; i < Size; i++) 
-    {
-        // Check for the start of a character's movement data (marked by `999`)
-        if (FontDataArray[i].x== 999 && FontDataArray[i].y== asciiValue) 
+    {   
+        if (FontDataArray[i].x== 999 && FontDataArray[i].y== asciiValue) // Find the start of a character (first value in struct is 999 and second is the asciivalue)
         {
             //Get the Number of lines to be copied from the FontDataArray
             NumberofLinesToCopy = (int)FontDataArray[i].z;
@@ -221,7 +220,7 @@ void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename) {
     FILE *file = fopen(filename, "r"); // Open the file in read mode
     if (file == NULL) //Check that is it not empty
     {
-        printf("Error opening StrokeFontData file");
+        printf("Error opening StrokeFontData file - Terminating");
     }
 
     /// Read the file line by line
