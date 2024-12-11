@@ -108,7 +108,7 @@ int main()
     float CurrentXPosition = 0.0f; /// Track the x position
     float CurrentYPosition = 0.0f; //Track the Y position
 
-    char WordArray[256]; // Creating an array to store each word
+    char WordArray[100]; // Creating an array to store each word
 
     CurrentYPosition -=(CharacterWidth * scalingFactor);   ///Move the pen down a line to write out the first line
 
@@ -202,7 +202,7 @@ int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue, struc
              // Loop through the number of liens to cop
             for (int k = 0; k <NumberofLinesToCopy; k++) 
             {
-                int FontDataline = i + 1 + k; /// To prevent the line starting with 999 to be read
+                int FontDataline = i + 1 + k; /// Dont read the 999 line
             
                 CharMovementArray[*NumCharMovements] = FontDataArray[FontDataline];  // Copy the line from FontDataArray into the Character Movement Array at the correct position
                 (*NumCharMovements)++; /// Increment the number of movements per character 
@@ -262,7 +262,7 @@ void ScaleCoordinates(struct FontData charMovementArray[], int NumCharMovements,
 //function to calculate word width
 float CalculateWordWidth(int WordLength, float CharacterWidth,float scalingFactor)
 {
-    // Calculating the width of the word = number of characters in the word * Size of the character * Scaling factor
+    // alculating the width of the word =number of characters in the word * Size of the character * Scaling factor
     float WordWidth = (float) WordLength * CharacterWidth * scalingFactor;
     return WordWidth;
 }
@@ -270,7 +270,6 @@ float CalculateWordWidth(int WordLength, float CharacterWidth,float scalingFacto
 // as the dummy 'WaitForReply' has a getch() within the function.
 void SendCommands (char *buffer )
 {
-    // printf ("Buffer to send: %s", buffer); // For diagnostic purposes only, normally comment out
     PrintBuffer (&buffer[0]);
     WaitForReply();
     Sleep(100); // Can omit this when using the writing robot but has minimal effect
