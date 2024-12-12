@@ -269,9 +269,9 @@ float CalculateWordWidth(int WordLength, float CharacterWidth,float scalingFacto
     return WordWidth;
 }   
 
-float CalcutlateScalingFactor(float userInput, float characerWidth)
+float CalcutlateScalingFactor(float userInput, float characterWidth)
 {
-    return userInput/ characerWidth;
+    return userInput/ characterWidth;
 }
 
 // Send the data to the robot - note in 'PC' mode you need to hit space twice
