@@ -34,7 +34,6 @@ void ScaleCoordinates(struct FontData CharMovementArray[], int NumCharMovements,
 //Function to retrieve charcter data
 int RetrieveCharacterData(struct FontData FontDataArray[], int asciiValue,struct FontData CharMovementArray[], int *NumCharMovements);
 
-
 //Function to apply offset
 void ApplyOffset(struct FontData charMovementArray[], int NumCharMovements, float PositionX, float PositionY);
 
@@ -43,6 +42,8 @@ void GenerateGcode(struct FontData charMovementArray[], int NumCharMovements);
 
 //Funcion to calculate word width
 float CalculateWordWidth(int WordLength, float CharacterWidth,float scalingFactor);
+
+float CalcutlateScalingFactor(float userInput, float characerWidth);
 
 int main()
 {
@@ -91,7 +92,7 @@ int main()
 
 
     //  //Calculatong the scaling factor using the User input value
-    float scalingFactor = userInput /CharacterWidth;  
+    float scalingFactor = CalcutlateScalingFactor(userInput, CharacterWidth);  
 
     char TextFileName[256]; //Creating a buffer to store the name of the text file
     printf("\n Please enter the name of the text file to be drawn by robot: "); // Prompt user to enter name of the text file to be drawn out
@@ -220,7 +221,8 @@ void PopulateFontDataArray(struct Multi_FontData *Fonts, const char *filename) {
     FILE *file = fopen(filename, "r"); // Open the file in read mode
     if (file == NULL) //Check that is it not empty
     {
-        printf("Error opening StrokeFontData file - Terminating");
+        printf("Error opening StrokeFontData file - Terminating");  //If there was an error opening the file, return.
+        return;
     }
 
     /// Read the file line by line
@@ -265,7 +267,13 @@ float CalculateWordWidth(int WordLength, float CharacterWidth,float scalingFacto
     // alculating the width of the word =number of characters in the word * Size of the character * Scaling factor
     float WordWidth = (float) WordLength * CharacterWidth * scalingFactor;
     return WordWidth;
+}   
+
+float CalcutlateScalingFactor(float userInput, float characerWidth)
+{
+    return userInput/ characerWidth;
 }
+
 // Send the data to the robot - note in 'PC' mode you need to hit space twice
 // as the dummy 'WaitForReply' has a getch() within the function.
 void SendCommands (char *buffer )
